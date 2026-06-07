@@ -25,11 +25,12 @@ func TestIntegrationCreateThenUpdate(t *testing.T) {
 			json.NewEncoder(w).Encode(map[string]any{"count": len(results), "results": results})
 
 		case http.MethodPost:
-			if err := r.ParseMultipartForm(1 << 20); err != nil {
+			var req certKeyPairRequest
+			if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 				http.Error(w, err.Error(), http.StatusBadRequest)
 				return
 			}
-			stored = &CertKeyPair{PK: fakePK, Name: r.FormValue("name")}
+			stored = &CertKeyPair{PK: fakePK, Name: req.Name}
 			w.WriteHeader(http.StatusCreated)
 			json.NewEncoder(w).Encode(stored)
 
@@ -43,11 +44,12 @@ func TestIntegrationCreateThenUpdate(t *testing.T) {
 			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
-		if err := r.ParseMultipartForm(1 << 20); err != nil {
+		var req certKeyPairRequest
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
 		}
-		stored.Name = r.FormValue("name")
+		stored.Name = req.Name
 		json.NewEncoder(w).Encode(stored)
 	})
 

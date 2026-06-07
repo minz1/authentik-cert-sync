@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"mime/multipart"
 	"net/http"
 	"strings"
 )
@@ -78,7 +77,7 @@ func (c *Client) FindByName(name string) (*CertKeyPair, error) {
 }
 
 func (c *Client) Create(name, certPEM, keyPEM string) error {
-	body, contentType, err := buildMultipart(name, certPEM, keyPEM)
+	body, err := buildJSON(name, certPEM, keyPEM)
 	if err != nil {
 		return err
 	}
@@ -87,7 +86,7 @@ func (c *Client) Create(name, certPEM, keyPEM string) error {
 	if err != nil {
 		return err
 	}
-	req.Header.Set("Content-Type", contentType)
+	req.Header.Set("Content-Type", "application/json")
 
 	resp, err := c.httpClient.Do(req)
 	if err != nil {
@@ -103,7 +102,7 @@ func (c *Client) Create(name, certPEM, keyPEM string) error {
 }
 
 func (c *Client) Update(pk, name, certPEM, keyPEM string) error {
-	body, contentType, err := buildMultipart(name, certPEM, keyPEM)
+	body, err := buildJSON(name, certPEM, keyPEM)
 	if err != nil {
 		return err
 	}
@@ -112,7 +111,7 @@ func (c *Client) Update(pk, name, certPEM, keyPEM string) error {
 	if err != nil {
 		return err
 	}
-	req.Header.Set("Content-Type", contentType)
+	req.Header.Set("Content-Type", "application/json")
 
 	resp, err := c.httpClient.Do(req)
 	if err != nil {
@@ -127,21 +126,16 @@ func (c *Client) Update(pk, name, certPEM, keyPEM string) error {
 	return nil
 }
 
-func buildMultipart(name, certPEM, keyPEM string) (io.Reader, string, error) {
-	var buf bytes.Buffer
-	w := multipart.NewWriter(&buf)
+type certKeyPairRequest struct {
+	Name            string `json:"name"`
+	CertificateData string `json:"certificate_data"`
+	KeyData         string `json:"key_data"`
+}
 
-	if err := w.WriteField("name", name); err != nil {
-		return nil, "", err
+func buildJSON(name, certPEM, keyPEM string) (io.Reader, error) {
+	data, err := json.Marshal(certKeyPairRequest{Name: name, CertificateData: certPEM, KeyData: keyPEM})
+	if err != nil {
+		return nil, err
 	}
-	if err := w.WriteField("certificate_data", certPEM); err != nil {
-		return nil, "", err
-	}
-	if err := w.WriteField("key_data", keyPEM); err != nil {
-		return nil, "", err
-	}
-	if err := w.Close(); err != nil {
-		return nil, "", err
-	}
-	return &buf, w.FormDataContentType(), nil
+	return bytes.NewReader(data), nil
 }
